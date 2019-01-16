@@ -1,0 +1,124 @@
+---
+title: "Day 7 Practice"
+output: html_document
+---
+
+
+# Section 1
+
+0. Load packages and make a copy of the `french_fries` data (from the `reshape2` package) in your workspace.
+
+```{r}
+library(tidyverse)
+library(reshape2)
+ff <- french_fries
+
+```
+
+1. Reshape the french fries data to a "long" format, where all of the flavor ratings are in a single column, and another column designates the flavor "dimension" or "scale".
+
+```{r}
+View(ff)
+colnames(ff)
+
+# ff$rating <- as.factor(paste("rating", 1:nrow(ff), sep = ""))
+# ff.vert <- gather(ff, rating.dimension, scale, potato:painty)
+#ff.vert <- melt(ff, rating=(c("potato", "buttery", "grassy", "rancid", "painty")))
+?gather
+
+ff.vert <- gather(ff, flavor, rating, potato:painty) 
+      #ff is data.frame;
+      #flavor: column where the category names are going (factor column)
+      #rating: data where all the gathered columns are going (data column)
+      #potato:painty : say which columns you are gathering
+#ff.vert.alt <- gather(ff, flavor, rating, c("potato", "buttery", "grassy", "rancid"...)) 
+  #this is for if your columns are all over the place and need to select them
+head(ff.vert)
+levels(as.factor(ff.vert$flavor)) #check that they are all factors
+unique(ff.vert$flavor)
+
+view(ff.vert)
+```
+
+
+2. Now reshape this so that the ratings under different treatments are in different columns. HINT: you may want to change the factor level labels before reshaping.
+
+```{r}
+ff.wide1 <- spread(ff.vert, treatment, rating) 
+head(ff.wide1)
+view(ff.wide1)
+#give column name where the new column is coming from (so it will be treatment)
+#give new column will be the data that you are putting in the new columns
+
+levels(ff.vert$treatment) <- c("oil1", "oil2", "oil3")
+```
+
+
+3. Plot scatterplots and regression lines for pairs of different treatment types using this "wide" data. Also use `cor()` or `cor.test()` to test the correlations, and compare those results to the plots.
+
+```{r}
+ggplot(ff.wide1, aes(oil1, oil2)) + geom_point()
+ggplot(ff.wide1, aes(oil1, oil2)) + geom_point() + geom_smooth()
+ggplot(ff.wide1, aes(oil1, oil2)) + geom_point() + geom_smooth(method = "lm")
+
+ggplot(ff.wide1, aes(oil1, oil3)) + geom_point() + geom_smooth(method = "lm")
+ggplot(ff.wide1, aes(oil2, oil3)) + geom_point() + geom_smooth(method = "lm")
+
+cor(ff.wide1$oil1, ff.wide1$oil2, use = "complete.obs")
+?cor
+
+```
+
+
+# Section 2
+
+4. Define a function that computes the standard error of a mean. The formula is "the standard deviation divided by the square root of the number of observations". Check that it works with some (generated) random data. 
+
+```{r}
+sem <- function(x, na.rm = FALSE) {
+  sd(x, na.rm = na.rm)/sqrt(length(x))
+  }
+
+set.seed(16)
+stem <- rnorm(n = 100, mean = 10)
+sem(x)
+
+```
+
+
+5. With the french fries data, use `group_by()` and `summarize()` to get some summary statistics for the "potato" ratings by treatment, collapsed over time, subject, and rep.  Compute the mean, standard deviation, number of observations, and standard error for each treatment. For the latter, use your function from above.
+
+```{r}
+
+ff<- french_fries
+colnames(ff)
+
+ff.means <- ff %>%
+  group_by(treatment) %>%
+  summarize(mean.rating = mean(potato, na.rm = TRUE),
+            se = sem(potato, na.rm = TRUE))
+ff.means
+as.data.frame(ff.means)
+# group_by(ff, "potato", "treatment") %>% 
+#   summarize(mean.rating = mean(potato, na.rm = TRUE), 
+#             std.rating = sd(potato, na.rm = TRUE),
+#             num.obs = ) %>%
+#   spread(treatment, mean.rating) %>%
+#   as.data.frame()
+
+ff.means <
+```
+
+
+6. Using these summary values, plot the means and 95% confidence intervals using `geom_point` and `geom_errorbar`. HINT: use +/- 1.96 * the standard error for the upper and lower bounds of the 95% CI.
+
+```{r}
+ggplot(ff.means, aes(treatment, mean.rating)) + geom_point() +
+  geom_errorbar(aes(ymin = mean.rating - se*1.96, ymax = mean.rating + se*1.96))
+
+ggplot(ff.means, aes(treatment, mean.rating)) + geom_pointrange(aes(ymin = mean.rating - se*1.96, ymax = mean.rating + se*1.96))
+
+
+```
+
+
