@@ -1,0 +1,285 @@
+---
+title: "Day 6 Practice"
+output: html_document
+---
+
+# Section 1
+
+1. Load the `french_fries` data set into R by installing/loading the `reshape2` package.
+
+```{r}
+# install.packages("reshape2")
+library(reshape2)
+library(tidyverse)
+library(dplyr)
+ff <- french_fries
+
+```
+
+
+2. Take a quick peek at the data using a few different functions to get a basic feel for the data.
+
+```{r}
+head(ff)
+summary(ff)
+nrow(ff)
+ncol(ff)
+colnames(ff)
+length(ff) #this treats your data like a list...not like a vector
+View(ff)
+
+```
+
+
+3. Change the first three column names to "week", "oil.type", and "participant"
+
+```{r}
+colnames(ff)
+colnames(ff)[1:3]
+colnames(ff)[1:3] <- c("week", "oil.type", "participant")
+head(ff)
+```
+
+
+4. Locate NAs in the data. Look at a subset of the data where NAs appear. Any patterns? What should be done about these?
+
+```{r}
+#ways to look for NAs
+summary(ff) #tells you NA in numeric and factor columns
+
+ff.missingpotato <- ff[is.na(ff$potato), ] 
+# == NA it means the value is NA (this is data frame for when there is only NA)
+ff.nomissing <- ff[complete.cases(ff), ] #gives your true/false vector if True then its complete
+ff.anymissing <- ff[!complete.cases(ff), ] 
+
+ff.anymissing.dplyr <- filter(ff, is.na(potato)| is.na(buttery) | is.na(grassy) | is.na(rancid) | is.na(painty))
+
+
+# identical() is very picky!
+ff.anymissing
+ff.anymissing.dplyr
+identical(ff.anymissing.dplyr, ff.anymissing)
+
+```
+
+
+5. Check the data types of all columns. Anything to change? Make those changes.
+
+```{r}
+summary(ff)
+lapply(ff, class) #apply the fucntion 'class' to this data frame list (aka 'ff')
+head(as.tibble(ff))
+as.data.frame(ff)
+
+#as.data.fram( "cleans up as tiblble")
+
+ff$rep.factor <- as.factor(ff$rep)
+ff <- mutate(ff, rep.factor.dplyr = as.factor(rep),
+             week.num = as.numeric(as.character(week))) # dplyr way 
+xtabs(~ week + week.num, ff)
+summary(ff)
+```
+
+
+6. Some of the factor levels look like numbers. Why is this potentially "dangerous"? Change these to be more obvious as factor levels and not numeric data.
+
+```{r}
+levels(ff$rep.factor.dplyr) <- c("first", "second")
+xtabs(~ rep + rep.factor.dplyr, ff)
+levels(ff$oil.type)
+levels(ff$oil.type) <- c("oil1", "oil2", "oil3")
+summary(ff)
+```
+
+
+7. Make a new column that is a copy of the "oil.type" column, and change the order of levels using one of the recommended methods.
+
+```{r}
+ff$oil.type2 <- factor(ff$oil.type, levels = c("oil2", "oil1", "oil3"))
+xtabs(~ oil.type + oil.type2, ff)
+
+```
+
+
+# Section 2
+
+8. Make a copy of the data with just two of the oil treatment levels. Update this subset to remove the "missing" level from the appropriate factors.
+
+```{r}
+head(ff)
+
+ff$rep <- as.factor(ff$rep)
+levels(ff$rep) <- c("first", "second")
+summary(ff$rep)
+
+ff.oil2and3 <- ff[ff$oil.type != "oil1", ]
+View(ff.oil2and3)
+
+ff.oil2and3.v1 <- ff[ff$oil.type != "oil1", ] #safe when no NAs in oil.type
+ff.oil2and3.v2 <- ff[ff$oil.type %in% "oil1", ] #will exclude NAs, 
+ff.oil2and3.v3 <- ff[ff$oil.type %in% c("oil2", "oil3"), ]
+
+ff.oil2and3.v3.dplyr <- filter(ff, oil.type %in% c("oil2", "oil3"))
+
+levels(ff.oil2and3.v3$oil.type)
+
+#to drop the level oil
+ff.oil2and3.v3$oil.type.clean <- factor(ff.oil2and3.v3$oil.type, levels = c("oil2", "oil3"))
+summary(ff.oil2and3.v3)
+
+xtabs(~oil.type + oil.type.clean, ff.oil2and3.v3)
+
+ff.subsetclean <- droplevels(ff.oil2and3.v3) #drops the levels that are absent and moves the first present level to level 1. so oil2 is now level 1.
+summary(ff.subsetclean)
+```
+
+
+9. Run the code below and imagine this is data from a few new people. Create a new data frame that appends this new data to the original data.  What if there is something different about these new people? How can you keep track of that after appending?
+
+```{r}
+
+
+```
+
+
+10. Run the code below and imagine this is a separate table of data about participants. Merge this with the original data, using both base R and `dplyr` functions.
+
+```{r}
+levels(ff.subsetclean$participant)
+unique(ff.subsetclean$participant) 
+#unique() on a data.fram drops duplicate rows; on a vector it gives back all the unique values. good for characters.
+set.seed(87)
+people.data <- data.frame(subject = c("3", "15", "19", "70", "71"),
+                          age = sample(20:50, 5, replace = TRUE),
+                          like.burgers = sample(c(TRUE, FALSE), 5, replace = TRUE, prob = c(.7, .3)))
+
+people.data
+
+ff.basemerge <- merge(ff, people.data)
+nrow(ff.basemerge)
+#lots more rows because there are no common columns.
+
+#again
+ff.basemerge <- merge(x = ff, y = people.data,
+                      by.x = c("participant"), 
+                      by.y = c("subject")) 
+#x refers to first data frame and y is 2nd data frame and we are telling it to say that they should be merged on those columns (they are same people)
+
+nrow(ff.basemerge)
+head(ff.basemerge)
+summary(ff.basemerge$participant)
+#this shows that we are only keeping the rows with participants in both data sets.
+
+#this means join by these 2 columns
+ff.innerjoin <- inner_join(ff, people.data,
+                           by = c("particpiant", "subject"))
+ff.innerjoin <- inner_join(ff, people.data,
+                          by = c("participant" = "subject"))
+summary(ff.innerjoin)
+#allows you to keep all the data
+
+ff.left <- left_join(ff, people.data,
+                     by = c("participant" = "subject"))
+nrow(ff.left) #the people who dont have the burger data just show up as NAs.
+nrow(ff)
+
+#bind rows is better. this can allow you to give you a new column to tell you how to bind and better for my kind of data merging.
+```
+
+
+11. Back to just the original data, plot a histogram of the "potato" rating values.
+
+```{r}
+
+ff<- french_fries
+#mapping a dimension of your data and a dimension on the plot
+ggplot(ff, aes(potato)) + geom_histogram()
+ggplot(ff, aes(potato)) + geom_histogram(binwidth = 1)
+#its not plotting the missing value and telling you that with a warning "nonfinite row"
+ggplot(ff, aes(x = potato, y = grassy)) + geom_point() + geom_smooth()
+?geom_smooth
+
+
+
+```
+
+
+12. Create a subset of the data that only looks at the "potato" dimension of flavor, and subsets to only positive (i.e., non-zero) values.  Plot a histogram of this subsetted data to confirm that you got rid of zeros.
+
+```{r}
+dev.off()
+ff <- french_fries
+ff.nozero <- filter(ff, potato > 0)
+ggplot(ff, aes(potato)) + geom_histogram(binwidth = .05)
+ggplot(ff.nozero, aes(potato)) + geom_histogram(binwidth = .05)
+
+```
+
+
+13. Log-transform and plot the "potato" values for this subset 
+
+```{r}
+ff.nozero$log.potato <- log(ff.nozero$potato)
+summary(ff.nozero$log.potato)
+
+ggplot(ff.nozero, aes(log.potato)) + geom_histogram()
+
+#could do it right inside ggplot
+
+ggplot(ff.nozero, aes(log(potato))) + geom_histogram()
+```
+
+
+# Section 3
+
+14. Reshape the french fries data to a "long" format, where all of the flavor ratings are in a single column, and another column designates the flavor "dimension" or "scale".
+
+```{r}
+
+```
+
+
+15. Now reshape this so that the ratings under different treatments are in different columns (using re-named oil treatment levels, not the original "numeric" levels).
+
+```{r}
+
+```
+
+
+16. Plot scatterplots and regression lines for pairs of different treatment types using this "wide" data. Also use `cor.test()` to test the correlations, and compare those results to the plots.
+
+```{r}
+
+```
+
+
+17. Use boxplots to compare the values of just the "potato" dimension, comparing different oil treatments.
+
+```{r}
+
+```
+
+
+# Section 4
+
+18. Define a function that computes the standard error of a mean. The formula is "the standard deviation divided by the square root of the number of observations". Check that it works with some (generated) random data.
+
+```{r}
+
+```
+
+
+19. Use `group_by()` and `summarize()` to get some summary statistics for the "potato" ratings by treatment, collaposed over time, subject, and rep.  Compute the mean, standard deviation, number of observations, and standard error for each treatment. For the latter, use your function from above.
+
+```{r}
+
+```
+
+
+20. Using these summary values, plot the means and 95% confidence intervals using `geom_point` and `geom_errorbar`.
+
+```{r}
+
+```
+
+
